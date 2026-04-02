@@ -1,0 +1,94 @@
+import { describe, expect, it, mock } from "bun:test";
+import { app } from "../../index";
+
+// Mock the services to avoid real DB connections
+mock.module("../services/users-service", () => {
+  return {
+    findUserByEmail: async (email: string) => {
+      if (email === "existing@example.com") {
+        return { id: 1, name: "Existing User", email: "existing@example.com" };
+      }
+      return null;
+    },
+    createUser: async (userData: any) => {
+      return {
+        id: 2,
+        name: userData.name,
+        email: userData.email,
+        createdAt: new Date().toISOString()
+      };
+    }
+  };
+});
+
+describe("User Registration API", () => {
+  it("should register a user successfully", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "John Doe",
+          email: "john@example.com",
+          password: "password123"
+        })
+      })
+    );
+
+    const result = await response.json() as any;
+    expect(response.status).toBe(200);
+    expect(result.message).toBe("User created successfully");
+    expect(result.data.email).toBe("john@example.com");
+    expect(result.data).not.toHaveProperty("password");
+  });
+
+  it("should fail if email is already registered", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Existing",
+          email: "existing@example.com",
+          password: "password123"
+        })
+      })
+    );
+
+    const result = await response.json() as any;
+    expect(response.status).toBe(400);
+    expect(result.message).toBe("Email already registered");
+  });
+
+  it("should fail validation for short password", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Test",
+          email: "test@example.com",
+          password: "123"
+        })
+      })
+    );
+
+    expect(response.status).toBe(422);
+  });
+
+  it("should fail validation for invalid email", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Test",
+          email: "not-an-email",
+          password: "password123"
+        })
+      })
+    );
+
+    expect(response.status).toBe(422);
+  });
+});
