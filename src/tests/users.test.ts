@@ -156,4 +156,65 @@ describe("User Registration API", () => {
       expect(response.status).toBe(422);
     });
   });
+
+  describe("Get Me", () => {
+    it("should return user profile with valid token", async () => {
+      mock.module("../services/users-service", () => {
+        return {
+          getUserByToken: async (token: string) => {
+            if (token === "valid-token") {
+              return {
+                id: 1,
+                name: "John Doe",
+                email: "john@example.com",
+                createdAt: new Date().toISOString()
+              };
+            }
+            return null;
+          }
+        };
+      });
+
+      const response = await app.handle(
+        new Request("http://localhost/api/users/me", {
+          method: "GET",
+          headers: { 
+            "Authorization": "Bearer valid-token" 
+          }
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(200);
+      expect(result.data.email).toBe("john@example.com");
+      expect(result.data).not.toHaveProperty("password");
+    });
+
+    it("should fail with missing authorization header", async () => {
+      const response = await app.handle(
+        new Request("http://localhost/api/users/me", {
+          method: "GET"
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(400);
+      expect(result.error).toBe("INVALID_TOKEN");
+    });
+
+    it("should fail with invalid token", async () => {
+      const response = await app.handle(
+        new Request("http://localhost/api/users/me", {
+          method: "GET",
+          headers: { 
+            "Authorization": "Bearer invalid-token" 
+          }
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(400);
+      expect(result.error).toBe("INVALID_TOKEN");
+    });
+  });
 });

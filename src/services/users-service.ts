@@ -48,3 +48,20 @@ export const loginUser = async (email: string, password: any) => {
   
   return token;
 };
+
+export const getUserByToken = async (token: string) => {
+  const db = await getDb();
+  
+  const result = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    })
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .where(eq(sessions.token, token));
+    
+  return result[0] || null;
+};

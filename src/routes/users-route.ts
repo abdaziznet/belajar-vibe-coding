@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { createUser, findUserByEmail, loginUser } from "../services/users-service";
+import { createUser, findUserByEmail, loginUser, getUserByToken } from "../services/users-service";
 
 export const usersRoute = new Elysia({ prefix: "/api/users" })
   .post("/", async ({ body, set }) => {
@@ -70,4 +70,37 @@ export const usersRoute = new Elysia({ prefix: "/api/users" })
       email: t.String({ format: "email", error: "Invalid email format" }),
       password: t.String({ minLength: 1, error: "Password is required" })
     })
+  })
+  .get("/me", async ({ headers, set }) => {
+    const auth = headers['authorization'];
+    
+    if (!auth || !auth.startsWith("Bearer ")) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    
+    const token = auth.split(" ")[1];
+    if (!token) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    const user = await getUserByToken(token);
+    
+    if (!user) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    
+    return {
+      data: user
+    };
   });
