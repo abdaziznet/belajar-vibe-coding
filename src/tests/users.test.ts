@@ -91,4 +91,69 @@ describe("User Registration API", () => {
 
     expect(response.status).toBe(422);
   });
+
+  describe("Login", () => {
+    it("should login successfully with valid credentials", async () => {
+      // Stub the service for specific email/password combo
+      mock.module("../services/users-service", () => {
+        return {
+          loginUser: async (email: string, password: any) => {
+            if (email === "john@example.com" && password === "password123") {
+              return "mocked-uuid-token";
+            }
+            return null;
+          }
+        };
+      });
+
+      const response = await app.handle(
+        new Request("http://localhost/api/users/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: "john@example.com",
+            password: "password123"
+          })
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(200);
+      expect(result.message).toBe("User logged in successfully");
+      expect(result.data).toBe("mocked-uuid-token");
+    });
+
+    it("should fail login with invalid credentials", async () => {
+       // Using the same mock as above
+       const response = await app.handle(
+        new Request("http://localhost/api/users/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: "john@example.com",
+            password: "wrong-password"
+          })
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(400);
+      expect(result.error).toBe("INVALID_CREDENTIALS");
+    });
+
+    it("should fail validation for malformed email on login", async () => {
+      const response = await app.handle(
+        new Request("http://localhost/api/users/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: "not-an-email",
+            password: "password123"
+          })
+        })
+      );
+
+      expect(response.status).toBe(422);
+    });
+  });
 });
