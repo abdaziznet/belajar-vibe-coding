@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { createUser, findUserByEmail, loginUser, getUserByToken } from "../services/users-service";
+import { createUser, findUserByEmail, loginUser, getUserByToken, logoutUser } from "../services/users-service";
 
 export const usersRoute = new Elysia({ prefix: "/api/users" })
   .post("/", async ({ body, set }) => {
@@ -102,5 +102,40 @@ export const usersRoute = new Elysia({ prefix: "/api/users" })
     
     return {
       data: user
+    };
+  })
+  .delete("/logout", async ({ headers, set }) => {
+    const auth = headers['authorization'];
+    
+    if (!auth || !auth.startsWith("Bearer ")) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    
+    const token = auth.split(" ")[1];
+    if (!token) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    
+    const user = await getUserByToken(token);
+    if (!user) {
+      set.status = 400;
+      return {
+        message: "Token tidak valid",
+        error: "INVALID_TOKEN"
+      };
+    }
+    
+    await logoutUser(token);
+    
+    return {
+      data: "User logged out successfully"
     };
   });

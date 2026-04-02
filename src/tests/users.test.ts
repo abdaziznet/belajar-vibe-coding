@@ -217,4 +217,60 @@ describe("User Registration API", () => {
       expect(result.error).toBe("INVALID_TOKEN");
     });
   });
+
+  describe("Logout", () => {
+    it("should logout successfully with valid token", async () => {
+      mock.module("../services/users-service", () => {
+        return {
+          getUserByToken: async (token: string) => {
+            if (token === "valid-token") return { id: 1, name: "John", email: "j@e.c" };
+            return null;
+          },
+          logoutUser: async (token: string) => {
+            return;
+          }
+        };
+      });
+
+      const response = await app.handle(
+        new Request("http://localhost/api/users/logout", {
+          method: "DELETE",
+          headers: { 
+            "Authorization": "Bearer valid-token" 
+          }
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(200);
+      expect(result.data).toBe("User logged out successfully");
+    });
+
+    it("should fail logout with invalid token", async () => {
+      const response = await app.handle(
+        new Request("http://localhost/api/users/logout", {
+          method: "DELETE",
+          headers: { 
+            "Authorization": "Bearer invalid-token" 
+          }
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(400);
+      expect(result.error).toBe("INVALID_TOKEN");
+    });
+
+    it("should fail logout with missing authorization header", async () => {
+      const response = await app.handle(
+        new Request("http://localhost/api/users/logout", {
+          method: "DELETE"
+        })
+      );
+
+      const result = await response.json() as any;
+      expect(response.status).toBe(400);
+      expect(result.error).toBe("INVALID_TOKEN");
+    });
+  });
 });
