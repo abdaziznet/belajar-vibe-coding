@@ -1,46 +1,18 @@
 import { Elysia, t } from "elysia";
-import { createUser, findUserByEmail, loginUser, getUserByToken, logoutUser } from "../services/users-service";
+import { createUser, loginUser, logoutUser } from "../services/users-service";
+import { authMiddleware } from "../middlewares/auth";
 
 export const usersRoute = new Elysia({ prefix: "/api/users" })
-  .post("/", async ({ body, set }) => {
-    try {
-      const { name, email, password } = body;
-      
-      // 1. Basic format validation (already handled by Elysia schema)
-      
-      // 2. Business Logic: Check if email exists
-      const existingUser = await findUserByEmail(email);
-      if (existingUser) {
-        set.status = 400;
-        return {
-          message: "Email already registered",
-          error: "DUPLICATE_EMAIL"
-        };
-      }
-      
-      // 3. Create the user
-      const newUser = await createUser({ name, email, password });
-      
-      if (!newUser) {
-        set.status = 500;
-        return {
-          message: "Could not create user",
-          error: "INTERNAL_SERVER_ERROR"
-        };
-      }
-      
-      return {
-        message: "User created successfully",
-        data: newUser
-      };
-      
-    } catch (error: any) {
-      set.status = 400;
-      return {
-        message: error.message || "An error occurred",
-        error: "BAD_REQUEST"
-      };
-    }
+  .post("/", async ({ body }) => {
+    const { name, email, password } = body;
+    
+    // Create the user directly (error handling is in service + global loader)
+    const newUser = await createUser({ name, email, password });
+    
+    return {
+      message: "User created successfully",
+      data: newUser
+    };
   }, {
     body: t.Object({
       name: t.String({ minLength: 1, error: "Name is required" }),
@@ -71,68 +43,14 @@ export const usersRoute = new Elysia({ prefix: "/api/users" })
       password: t.String({ minLength: 1, error: "Password is required" })
     })
   })
-  .get("/me", async ({ headers, set }) => {
-    const auth = headers['authorization'];
-    
-    if (!auth || !auth.startsWith("Bearer ")) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    
-    const token = auth.split(" ")[1];
-    if (!token) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    const user = await getUserByToken(token);
-    
-    if (!user) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    
+  // Middleware applied to subsequent routes
+  .use(authMiddleware)
+  .get("/me", async ({ user }) => {
     return {
       data: user
     };
   })
-  .delete("/logout", async ({ headers, set }) => {
-    const auth = headers['authorization'];
-    
-    if (!auth || !auth.startsWith("Bearer ")) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    
-    const token = auth.split(" ")[1];
-    if (!token) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    
-    const user = await getUserByToken(token);
-    if (!user) {
-      set.status = 400;
-      return {
-        message: "Token tidak valid",
-        error: "INVALID_TOKEN"
-      };
-    }
-    
+  .delete("/logout", async ({ token }) => {
     await logoutUser(token);
     
     return {
