@@ -1,5 +1,5 @@
 import { getDb } from "../db/index";
-import { users } from "../db/schema";
+import { users, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -30,4 +30,21 @@ export const createUser = async (userData: any) => {
   
   const { password: _, ...userWithoutPassword } = newUser;
   return userWithoutPassword;
+};
+
+export const loginUser = async (email: string, password: any) => {
+  const user = await findUserByEmail(email);
+  if (!user) return null;
+  
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) return null;
+  
+  const token = crypto.randomUUID();
+  const db = await getDb();
+  await db.insert(sessions).values({
+    token,
+    userId: user.id,
+  });
+  
+  return token;
 };
