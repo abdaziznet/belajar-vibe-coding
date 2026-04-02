@@ -1,8 +1,10 @@
 import { Elysia } from "elysia";
 import { getDb } from "./src/db/index";
 import { users } from "./src/db/schema";
+import { usersRoute } from "./src/routes/users-route";
 
 const app = new Elysia()
+  .use(usersRoute)
   .get("/", () => "Hello, Elysia! This project is set up with Bun, Elysia, Drizzle, and MySQL.")
   .get("/users", async () => {
     try {
